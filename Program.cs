@@ -82,7 +82,7 @@ class Program
     {
         new PingThreadPool(_HostsNames, _PingCount, _PingInterval);
         while (!OnlyMainThreadIsRunning()){
-            Task.Delay(100);
+            Thread.Sleep(100);
         }
         return PingThreadPool.hostsReplies;
     }
@@ -91,7 +91,7 @@ class Program
         foreach (var hostName in _HostsNames)
             new PingTask(hostName, _PingCount, _PingInterval);
         while (!OnlyMainThreadIsRunning()) {
-            Task.Delay(100);
+            Thread.Sleep(100);
         }
         return PingTask.hostsReplies;
     }
@@ -99,14 +99,14 @@ class Program
     {
         new PingParallel(_HostsNames, _PingCount, _PingInterval, "ForEach");
         while (!PingParallel.IsTheProcessOver)
-            Task.Delay(100);
+            Thread.Sleep(100);
         return PingParallel.hostsReplies;
     }
     static Dictionary<string, List<PingReply>> GetHostsRepliesWithParallelInvoke()
     {
         new PingParallel(_HostsNames, _PingCount, _PingInterval, "Invoke");
         while (!PingParallel.IsTheProcessOver)
-            Task.Delay(100);
+            Thread.Sleep(100);
         return PingParallel.hostsReplies;
     }
 
@@ -114,7 +114,7 @@ class Program
     {
         new PingParallel(_HostsNames, _PingCount, _PingInterval, "ForEach");
         while (!PingParallel.IsTheProcessOver)
-            Task.Delay(100);
+            Thread.Sleep(100);
         return PingParallel.hostsReplies;
     }
 
@@ -122,7 +122,7 @@ class Program
     {
         new PingParallel(_HostsNames, _PingCount, _PingInterval, "For");
         while (!PingParallel.IsTheProcessOver)
-            Task.Delay(100);
+            Thread.Sleep(100);
         return PingParallel.hostsReplies;
     }
 
