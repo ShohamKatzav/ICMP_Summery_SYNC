@@ -25,7 +25,7 @@ namespace ICMP_Summery_SYNC
                 ThreadPool.QueueUserWorkItem(ThreadProc,host);
         }
 
-        public void ThreadProc(object hostName)
+        public void ThreadProc(object? hostName)
         {
             for (int i = 0; i < PingCount; i++)
             {

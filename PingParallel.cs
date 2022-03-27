@@ -16,6 +16,8 @@ namespace ICMP_Summery_SYNC
         public List<string> HostsNames;
         public int PingCount;
         public int PingInterval;
+
+        public static int index = 0;
         public PingParallel(List<string> hostsNames, int pingCount, int pingInterval, string ParallelOption)
         {
             this.HostsNames = hostsNames;
@@ -55,11 +57,11 @@ namespace ICMP_Summery_SYNC
             {
                 string host = HostsNames[index];
                 List<PingReply> pingReplies = new List<PingReply>();
-                Parallel.For(0, PingCount, index =>
-                { 
+                for (int i = 0; i < PingCount; i++)
+                {
                     pingReplies.Add(new Ping().Send(host));
                     Thread.Sleep(PingInterval);
-                });
+                }
                 hostsReplies.Add(host, pingReplies);
 
             });
@@ -69,21 +71,25 @@ namespace ICMP_Summery_SYNC
 
         Task ParallelInvoke()
         {
-            Parallel.ForEach(HostsNames, host =>
-            {
-                List<PingReply> pingReplies = new List<PingReply>();
-                Parallel.Invoke(() =>
-                {
-                    Parallel.For(0, PingCount, index =>
-                    {
-                        pingReplies.Add(new Ping().Send(host));
-                        Thread.Sleep(PingInterval);
-                    });
-                });
-                hostsReplies.Add(host, pingReplies);
+            Parallel.ForEach(HostsNames, host => {
+                Parallel.Invoke(() => ProcForInvoke(host));
             });
             IsTheProcessOver = true;
             return Task.CompletedTask;
+        }
+
+        public void ProcForInvoke(string host)
+        {
+            List<PingReply> pingReplies = new List<PingReply>();
+            for (int i = 0; i < PingCount; i++)
+            {
+                Parallel.Invoke(new ParallelOptions() { MaxDegreeOfParallelism = HostsNames.Count },
+                     () =>
+                     {
+                         pingReplies.Add(new Ping().Send(host));
+                     }, () => { Thread.Sleep(PingInterval); });
+            }
+            hostsReplies.Add(host, pingReplies);
         }
 
     }
