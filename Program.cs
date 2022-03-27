@@ -186,7 +186,6 @@ class Program
 
         ThreadPool.GetMaxThreads(out workerThreads, out portThreads);
         ThreadPool.GetAvailableThreads(out workerThreads2, out portThreads2);
-        Console.WriteLine(workerThreads - workerThreads2);
         if (workerThreads - workerThreads2 > 1)
             return false;
         return true;
