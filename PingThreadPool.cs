@@ -9,8 +9,8 @@ namespace ICMP_Summery_SYNC
 {
     internal class PingThreadPool
     {
-        public static Dictionary<string, List<PingReply>> hostsReplies = new Dictionary<string, List<PingReply>>();
-        public List<PingReply> pingReplies = new List<PingReply>();
+        public static Dictionary<string, List<PingReply>> HostsReplies = new Dictionary<string, List<PingReply>>();
+        public static List<EventWaitHandle> ThreadLocks = new List<EventWaitHandle>();
 
         public List<string> HostName;
         public int PingCount;
@@ -22,17 +22,24 @@ namespace ICMP_Summery_SYNC
             this.PingCount = pingCount;
             this.PingInterval = pingInterval;
             foreach (string host in hostName)
-                ThreadPool.QueueUserWorkItem(ThreadProc,host);
+            {
+                EventWaitHandle LockForASingleThread = new EventWaitHandle(false, EventResetMode.ManualReset);
+                ThreadLocks.Add(LockForASingleThread);
+                ThreadPool.QueueUserWorkItem((X) => { ThreadProc(host); LockForASingleThread.Set(); });
+            }
+
+
         }
 
-        public void ThreadProc(object? hostName)
+        public void ThreadProc(object hostName)
         {
+            List<PingReply> PingReplies = new List<PingReply>();
             for (int i = 0; i < PingCount; i++)
             {
-                pingReplies.Add(new Ping().Send(hostName.ToString()));
+                PingReplies.Add(new Ping().Send(hostName.ToString()));
                 Thread.Sleep(PingInterval);
             }
-            hostsReplies.Add(hostName.ToString(), pingReplies);
+            HostsReplies.Add(hostName.ToString(), PingReplies);
         }
 
     }
