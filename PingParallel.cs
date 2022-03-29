@@ -13,8 +13,7 @@ namespace ICMP_Summery_SYNC
         public static Dictionary<string, List<PingReply>> hostsReplies = new Dictionary<string, List<PingReply>>();
         public static bool IsTheProcessOver = false;
         public EventWaitHandle ThreadLock = new EventWaitHandle(false, EventResetMode.ManualReset);
-        public static int IndexForInvokeParallel = 0;
-        public static bool lockIndex = true;
+        public static int IndexForInvokeParallel = -1;
 
         public List<string> HostsNames;
         public int PingCount;
@@ -35,22 +34,24 @@ namespace ICMP_Summery_SYNC
                 if (ParallelOption == "For")
                     ParallelOptionTask = ParallelFor();
                 else
-                    ParallelOptionTask = ParallelInvoke(0);
+                {
+                    ParallelOptionTask = ParallelInvoke();
+                }
             }
             ThreadLock.Set();
         }
         Task ParallelForEach()
         {
             Parallel.ForEach(HostsNames, new ParallelOptions() { MaxDegreeOfParallelism = HostsNames.Count }, host =>
-                  {
-                      List<PingReply> pingReplies = new List<PingReply>();
-                      for (int i = 0; i < PingCount; i++)
-                      {
-                          pingReplies.Add(new Ping().Send(host));
-                          Thread.Sleep(PingInterval);
-                      }
-                      hostsReplies.Add(host, pingReplies);
-                  });
+                 {
+                     List<PingReply> pingReplies = new List<PingReply>();
+                     for (int i = 0; i < PingCount; i++)
+                     {
+                         pingReplies.Add(new Ping().Send(host));
+                         Thread.Sleep(PingInterval);
+                     }
+                     hostsReplies.Add(host, pingReplies);
+                 });
             return Task.CompletedTask;
         }
         Task ParallelFor()
@@ -69,24 +70,26 @@ namespace ICMP_Summery_SYNC
             });
             return Task.CompletedTask;
         }
-        Task ParallelInvoke(int hostsIndex)
+        Task ParallelInvoke()
         {
             Parallel.Invoke(new ParallelOptions() { MaxDegreeOfParallelism = HostsNames.Count },
             () =>
                 {
+                    int iterationIndex = ++IndexForInvokeParallel;
                     List<PingReply> pingReplies = new List<PingReply>();
                     for (int i = 0; i < PingCount; i++)
                     {
-                        pingReplies.Add(new Ping().Send(HostsNames[hostsIndex]));
+                        pingReplies.Add(new Ping().Send(HostsNames[iterationIndex]));
                         Thread.Sleep(PingInterval);
                     }
-                    hostsReplies.TryAdd(HostsNames[hostsIndex], pingReplies);
+                    hostsReplies.Add(HostsNames[iterationIndex], pingReplies);
                 },
             () =>
             {
-                if (hostsIndex < HostsNames.Count - 1)
-                    ParallelInvoke(IndexForInvokeParallel++);
+                if (IndexForInvokeParallel < HostsNames.Count - 1)
+                    ParallelInvoke();
             });
+
             return Task.CompletedTask;
         }
 
