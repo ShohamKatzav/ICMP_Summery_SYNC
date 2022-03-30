@@ -12,7 +12,6 @@ namespace ICMP_Summery_SYNC
     {
         public static Dictionary<string, List<PingReply>> hostsReplies = new Dictionary<string, List<PingReply>>();
         public static bool IsTheProcessOver = false;
-        public EventWaitHandle ThreadLock = new EventWaitHandle(false, EventResetMode.ManualReset);
         public static int IndexForInvokeParallel = -1;
 
         public List<string> HostsNames;
@@ -38,7 +37,6 @@ namespace ICMP_Summery_SYNC
                     ParallelOptionTask = ParallelInvoke();
                 }
             }
-            ThreadLock.Set();
         }
         Task ParallelForEach()
         {
@@ -92,9 +90,6 @@ namespace ICMP_Summery_SYNC
             IndexForInvokeParallel = -1;
             return Task.CompletedTask;
         }
-
-
-
     }
 
 }

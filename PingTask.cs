@@ -10,9 +10,9 @@ namespace ICMP_Summery_SYNC
     internal class PingTask
     {
         public static Dictionary<string, List<PingReply>> hostsReplies = new Dictionary<string, List<PingReply>>();
+        public static List<Task> tasks = new List<Task>();
         public List<PingReply> PingReplies = new List<PingReply>();
         public Ping Ping = new Ping();
-        public Task Task;
 
         public string HostName;
         public int PingCount;
@@ -24,7 +24,7 @@ namespace ICMP_Summery_SYNC
             this.PingCount = pingCount;
             this.PingInterval = pingInterval;
 
-            Task = new Task(() =>
+            tasks.Add(Task.Run(() =>
             {
                 for (int i = 0; i < PingCount; i++)
                 {
@@ -32,8 +32,7 @@ namespace ICMP_Summery_SYNC
                     Thread.Sleep(PingInterval);
                 }
                 hostsReplies.Add(HostName, PingReplies);
-            });
-            Task.Start();
+            }));
             
         }
     }

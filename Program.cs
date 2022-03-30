@@ -92,34 +92,29 @@ class Program
         foreach (var hostName in _HostsNames)
             pingTasks.Add(new PingTask(hostName, _PingCount, _PingInterval));
         //
-        foreach (var task in pingTasks)
-            task.Task.Wait();
+        Task.WaitAll(PingTask.tasks.ToArray());
         return PingTask.hostsReplies;
     }
     static Dictionary<string, List<PingReply>> GetHostsRepliesWithTPL()
     {
         var para = new PingParallel(_HostsNames, _PingCount, _PingInterval, "ForEach");
-        para.ThreadLock.WaitOne();
         return PingParallel.hostsReplies;
     }
     static Dictionary<string, List<PingReply>> GetHostsRepliesWithParallelInvoke()
     {
         var para = new PingParallel(_HostsNames, _PingCount, _PingInterval, "Invoke");
-        para.ThreadLock.WaitOne();
         return PingParallel.hostsReplies;
     }
 
     static Dictionary<string, List<PingReply>> GetHostsRepliesWithParallelForEach()
     {
         var para = new PingParallel(_HostsNames, _PingCount, _PingInterval, "ForEach");
-        para.ThreadLock.WaitOne();
         return PingParallel.hostsReplies;
     }
 
     static Dictionary<string, List<PingReply>> GetHostsRepliesWithParallelFor()
     {
         var para = new PingParallel(_HostsNames, _PingCount, _PingInterval, "For");
-        para.ThreadLock.WaitOne();
         return PingParallel.hostsReplies;
     }
 
