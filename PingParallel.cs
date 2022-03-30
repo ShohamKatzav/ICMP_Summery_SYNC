@@ -89,7 +89,7 @@ namespace ICMP_Summery_SYNC
                 if (IndexForInvokeParallel < HostsNames.Count - 1)
                     ParallelInvoke();
             });
-
+            IndexForInvokeParallel = -1;
             return Task.CompletedTask;
         }
 

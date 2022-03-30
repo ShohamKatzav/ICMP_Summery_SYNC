@@ -93,7 +93,7 @@ class Program
             pingTasks.Add(new PingTask(hostName, _PingCount, _PingInterval));
         //
         foreach (var task in pingTasks)
-            task.ThreadLock.WaitOne();
+            task.Task.Wait();
         return PingTask.hostsReplies;
     }
     static Dictionary<string, List<PingReply>> GetHostsRepliesWithTPL()

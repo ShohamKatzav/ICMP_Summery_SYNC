@@ -13,7 +13,6 @@ namespace ICMP_Summery_SYNC
         public List<PingReply> PingReplies = new List<PingReply>();
         public Ping Ping = new Ping();
         public Task Task;
-        public EventWaitHandle ThreadLock = new EventWaitHandle(false, EventResetMode.ManualReset);
 
         public string HostName;
         public int PingCount;
@@ -33,7 +32,6 @@ namespace ICMP_Summery_SYNC
                     Thread.Sleep(PingInterval);
                 }
                 hostsReplies.Add(HostName, PingReplies);
-                ThreadLock.Set();
             });
             Task.Start();
             
