@@ -1,5 +1,4 @@
-﻿using ICMP_Summery_SYNC;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Net.NetworkInformation;
 
 class Program
@@ -24,6 +23,7 @@ class Program
                         pf = Parallel for
                         pfe = Parallel for each
                         pi = Parallel invoke
+                        async = Async Await
                         OR ctrl+C to break...";
 
     #endregion
@@ -49,6 +49,8 @@ class Program
             PrintReport(GetHostsRepliesWithParallelForEach);
         else if (userInput == "pi")
             PrintReport(GetHostsRepliesWithParallelInvoke);
+        else if (userInput == "async")
+            PrintReport(GetHostsRepliesWithAsync);
         else Console.WriteLine("invalid input...");
     }
 
@@ -70,52 +72,147 @@ class Program
     }
     static Dictionary<string, List<PingReply>> GetHostsRepliesWithThreads()
     {
-        List<PingThread> pingThreads = new List<PingThread>();
-        foreach (var hostName in _HostsNames)
-            pingThreads.Add(new PingThread(hostName, _PingCount, _PingInterval));
-        //
+        Dictionary<string, List<PingReply>> hostsReplies = new Dictionary<string, List<PingReply>>();
+        List<Thread> pingThreads = new List<Thread>();
+        foreach (var host in _HostsNames)
+        {
+            pingThreads.Add(new Thread(() =>
+            {
+                Ping Ping = new Ping();
+                List<PingReply> pingReplies = new List<PingReply>();
+                for (int i = 0; i < _PingCount; i++)
+                {
+                    pingReplies.Add(Ping.Send(host));
+                    Thread.Sleep(_PingInterval);
+                }
+                hostsReplies.Add(host, pingReplies);
+            }));
+        }
         foreach (var pingThread in pingThreads)
-            pingThread.PingSenderThread.Join();
-        return PingThread.hostsReplies;
+            pingThread.Start();
+        foreach (var pingThread in pingThreads)
+            pingThread.Join();
+        return hostsReplies;
     }
+
     static Dictionary<string, List<PingReply>> GetHostsRepliesWithThreadPool()
     {
-        new PingThreadPool(_HostsNames, _PingCount, _PingInterval);
-        //
-        foreach (var ewh in PingThreadPool.ThreadLocks)
+        Dictionary<string, List<PingReply>> hostsReplies = new Dictionary<string, List<PingReply>>();
+        List<EventWaitHandle> ThreadLocks = new List<EventWaitHandle>();
+
+        foreach (var host in _HostsNames)
+        {
+            EventWaitHandle LockForASingleThread = new EventWaitHandle(false, EventResetMode.ManualReset);
+            ThreadLocks.Add(LockForASingleThread);
+            ThreadPool.QueueUserWorkItem((X) =>
+            {
+                Ping Ping = new Ping();
+                List<PingReply> PingReplies = new List<PingReply>();
+                for (int i = 0; i < _PingCount; i++)
+                {
+                    PingReplies.Add(Ping.Send(host));
+                    Thread.Sleep(_PingInterval);
+                }
+                hostsReplies.Add(host, PingReplies);
+                LockForASingleThread.Set();
+            });
+        }
+        foreach (var ewh in ThreadLocks)
             ewh.WaitOne();
-        return PingThreadPool.HostsReplies;
+        return hostsReplies;
     }
     static Dictionary<string, List<PingReply>> GetHostsRepliesWithTasks()
     {
-        List<PingTask> pingTasks = new List<PingTask>();
-        foreach (var hostName in _HostsNames)
-            pingTasks.Add(new PingTask(hostName, _PingCount, _PingInterval));
-        //
-        Task.WaitAll(PingTask.tasks.ToArray());
-        return PingTask.hostsReplies;
+        Dictionary<string, List<PingReply>> hostsReplies = new Dictionary<string, List<PingReply>>();
+        List<Task> pingTasks = new List<Task>();
+        foreach (var host in _HostsNames)
+            pingTasks.Add(Task.Run(() =>
+            {
+                Ping Ping = new Ping();
+                List<PingReply> PingReplies = new List<PingReply>();
+                for (int i = 0; i < _PingCount; i++)
+                {
+                    PingReplies.Add(Ping.Send(host));
+                    Thread.Sleep(_PingInterval);
+                }
+                hostsReplies.Add(host, PingReplies);
+            }));
+        Task.WaitAll(pingTasks.ToArray());
+        return hostsReplies;
     }
-    static Dictionary<string, List<PingReply>> GetHostsRepliesWithTPL()
+    static Dictionary<string, List<PingReply>> GetHostsRepliesWithAsync()
     {
-        var para = new PingParallel(_HostsNames, _PingCount, _PingInterval, "ForEach");
-        return PingParallel.hostsReplies;
+        Dictionary<string, List<PingReply>> hostsReplies = new Dictionary<string, List<PingReply>>();
+        List<Task> tasks = new List<Task>();
+        foreach (string host in _HostsNames)
+            tasks.Add(Task.Run(async () =>
+            {
+                List<PingReply> pingReplies = new List<PingReply>();
+                for (int i = 0; i < _PingCount; i++)
+                {
+                    pingReplies.Add(new Ping().Send(host));
+                    await Task.Delay(_PingInterval);
+                }
+                hostsReplies.Add(host, pingReplies);
+
+            }));
+        Task.WaitAll(tasks.ToArray());
+        return hostsReplies;
     }
     static Dictionary<string, List<PingReply>> GetHostsRepliesWithParallelInvoke()
     {
-        var para = new PingParallel(_HostsNames, _PingCount, _PingInterval, "Invoke");
-        return PingParallel.hostsReplies;
+        Dictionary<string, List<PingReply>> hostsReplies = new Dictionary<string, List<PingReply>>();
+        List<Action> actions = new List<Action>();
+        foreach (var host in _HostsNames)
+            actions.Add(() =>
+            {
+                Ping Ping = new Ping();
+                List<PingReply> PingReplies = new List<PingReply>();
+                for (int i = 0; i < _PingCount; i++)
+                {
+                    PingReplies.Add(Ping.Send(host));
+                    Thread.Sleep(_PingInterval);
+                }
+                hostsReplies.Add(host, PingReplies);
+            });
+        Parallel.Invoke(actions.ToArray());
+        return hostsReplies;
     }
 
     static Dictionary<string, List<PingReply>> GetHostsRepliesWithParallelForEach()
     {
-        var para = new PingParallel(_HostsNames, _PingCount, _PingInterval, "ForEach");
-        return PingParallel.hostsReplies;
+        Dictionary<string, List<PingReply>> hostsReplies = new Dictionary<string, List<PingReply>>();
+        Parallel.ForEach(_HostsNames, host =>
+        {
+            List<PingReply> pingReplies = new List<PingReply>();
+            Ping Ping = new Ping();
+            for (int i = 0; i < _PingCount; i++)
+            {
+                pingReplies.Add(Ping.Send(host));
+                Thread.Sleep(_PingInterval);
+            }
+            hostsReplies.Add(host, pingReplies);
+        });
+        return hostsReplies;
     }
 
     static Dictionary<string, List<PingReply>> GetHostsRepliesWithParallelFor()
     {
-        var para = new PingParallel(_HostsNames, _PingCount, _PingInterval, "For");
-        return PingParallel.hostsReplies;
+        Dictionary<string, List<PingReply>> hostsReplies = new Dictionary<string, List<PingReply>>();
+        Parallel.For(0, _HostsNames.Count, index =>
+        {
+            string host = _HostsNames[index];
+            List<PingReply> pingReplies = new List<PingReply>();
+            Ping Ping = new Ping();
+            for (int i = 0; i < _PingCount; i++)
+            {
+                pingReplies.Add(Ping.Send(host));
+                Thread.Sleep(_PingInterval);
+            }
+            hostsReplies.Add(host, pingReplies);
+
+        });
+        return hostsReplies;
     }
 
     static Dictionary<string, PingReplyStatistics> GetHostsRepliesStatistics(Dictionary<string, List<PingReply>> hostsReplies)
@@ -167,23 +264,6 @@ class Program
             Console.WriteLine($"{hr.Key},{hr.Value}");
         }
     }
-
-    // This function will return true if theres only 1 (Main) thread in ThreadPool 
-    static bool OnlyMainThreadIsRunning()
-    {
-        int workerThreads;
-        int portThreads;
-        int workerThreads2;
-        int portThreads2;
-
-        ThreadPool.GetMaxThreads(out workerThreads, out portThreads);
-        ThreadPool.GetAvailableThreads(out workerThreads2, out portThreads2);
-        if (workerThreads - workerThreads2 > 1)
-            return false;
-        return true;
-
-    }
-
 
 
 }
