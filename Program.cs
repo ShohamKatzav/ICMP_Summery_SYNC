@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Net.NetworkInformation;
-
+using System.Net;
+using System.Collections.Concurrent;
 class Program
 {
     #region Fields & Properties
@@ -70,35 +71,50 @@ class Program
         }
         return hostsReplies;
     }
+    static void AddPingRepliesToHostsReplies(Dictionary<string, List<PingReply>> hostsReplies, ConcurrentBag<PingReply> pingReplies)
+    {
+        foreach (var host in _HostsNames)
+        {
+            List<PingReply> pingRepliesForHost = new List<PingReply>();
+            IPAddress[] AddressListForHost = Dns.GetHostAddresses(host);
+            foreach (var replay in pingReplies)
+            {
+                if (AddressListForHost.Contains(replay.Address))
+                    pingRepliesForHost.Add(replay);
+
+            }
+            hostsReplies.Add(host, pingRepliesForHost);
+        }
+    }
     static Dictionary<string, List<PingReply>> GetHostsRepliesWithThreads()
     {
         Dictionary<string, List<PingReply>> hostsReplies = new Dictionary<string, List<PingReply>>();
         List<Thread> pingThreads = new List<Thread>();
+        ConcurrentBag<PingReply> PingReplies = new ConcurrentBag<PingReply>();
         foreach (var host in _HostsNames)
         {
             pingThreads.Add(new Thread(() =>
             {
                 Ping Ping = new Ping();
-                List<PingReply> pingReplies = new List<PingReply>();
                 for (int i = 0; i < _PingCount; i++)
                 {
-                    pingReplies.Add(Ping.Send(host));
+                    PingReplies.Add(Ping.Send(host));
                     Thread.Sleep(_PingInterval);
                 }
-                hostsReplies.Add(host, pingReplies);
             }));
         }
         foreach (var pingThread in pingThreads)
             pingThread.Start();
         foreach (var pingThread in pingThreads)
             pingThread.Join();
+        AddPingRepliesToHostsReplies(hostsReplies, PingReplies);
         return hostsReplies;
     }
-
     static Dictionary<string, List<PingReply>> GetHostsRepliesWithThreadPool()
     {
         Dictionary<string, List<PingReply>> hostsReplies = new Dictionary<string, List<PingReply>>();
         List<EventWaitHandle> ThreadLocks = new List<EventWaitHandle>();
+        ConcurrentBag<PingReply> PingReplies = new ConcurrentBag<PingReply>();
 
         foreach (var host in _HostsNames)
         {
@@ -107,98 +123,102 @@ class Program
             ThreadPool.QueueUserWorkItem((X) =>
             {
                 Ping Ping = new Ping();
-                List<PingReply> PingReplies = new List<PingReply>();
                 for (int i = 0; i < _PingCount; i++)
                 {
                     PingReplies.Add(Ping.Send(host));
                     Thread.Sleep(_PingInterval);
                 }
-                hostsReplies.Add(host, PingReplies);
                 LockForASingleThread.Set();
             });
         }
         foreach (var ewh in ThreadLocks)
             ewh.WaitOne();
+        AddPingRepliesToHostsReplies(hostsReplies, PingReplies);
         return hostsReplies;
     }
     static Dictionary<string, List<PingReply>> GetHostsRepliesWithTasks()
     {
         Dictionary<string, List<PingReply>> hostsReplies = new Dictionary<string, List<PingReply>>();
         List<Task> pingTasks = new List<Task>();
+        ConcurrentBag<PingReply> PingReplies = new ConcurrentBag<PingReply>();
+
         foreach (var host in _HostsNames)
             pingTasks.Add(Task.Run(() =>
             {
                 Ping Ping = new Ping();
-                List<PingReply> PingReplies = new List<PingReply>();
                 for (int i = 0; i < _PingCount; i++)
                 {
                     PingReplies.Add(Ping.Send(host));
                     Thread.Sleep(_PingInterval);
                 }
-                hostsReplies.Add(host, PingReplies);
             }));
         Task.WaitAll(pingTasks.ToArray());
+        AddPingRepliesToHostsReplies(hostsReplies, PingReplies);
         return hostsReplies;
     }
     static Dictionary<string, List<PingReply>> GetHostsRepliesWithAsync()
     {
         Dictionary<string, List<PingReply>> hostsReplies = new Dictionary<string, List<PingReply>>();
         List<Task> tasks = new List<Task>();
+        ConcurrentBag<PingReply> PingReplies = new ConcurrentBag<PingReply>();
+
         foreach (string host in _HostsNames)
             tasks.Add(Task.Run(async () =>
             {
-                List<PingReply> pingReplies = new List<PingReply>();
                 for (int i = 0; i < _PingCount; i++)
                 {
-                    pingReplies.Add(new Ping().Send(host));
+                    PingReplies.Add(new Ping().Send(host));
                     await Task.Delay(_PingInterval);
                 }
-                hostsReplies.Add(host, pingReplies);
 
             }));
         Task.WaitAll(tasks.ToArray());
+        AddPingRepliesToHostsReplies(hostsReplies, PingReplies);
         return hostsReplies;
     }
     static Dictionary<string, List<PingReply>> GetHostsRepliesWithParallelInvoke()
     {
         Dictionary<string, List<PingReply>> hostsReplies = new Dictionary<string, List<PingReply>>();
         List<Action> actions = new List<Action>();
+        ConcurrentBag<PingReply> PingReplies = new ConcurrentBag<PingReply>();
+
         foreach (var host in _HostsNames)
             actions.Add(() =>
             {
                 Ping Ping = new Ping();
-                List<PingReply> PingReplies = new List<PingReply>();
                 for (int i = 0; i < _PingCount; i++)
                 {
                     PingReplies.Add(Ping.Send(host));
                     Thread.Sleep(_PingInterval);
                 }
-                hostsReplies.Add(host, PingReplies);
             });
         Parallel.Invoke(actions.ToArray());
+        AddPingRepliesToHostsReplies(hostsReplies, PingReplies);
         return hostsReplies;
     }
 
     static Dictionary<string, List<PingReply>> GetHostsRepliesWithParallelForEach()
     {
         Dictionary<string, List<PingReply>> hostsReplies = new Dictionary<string, List<PingReply>>();
+        ConcurrentBag<PingReply> PingReplies = new ConcurrentBag<PingReply>();
         Parallel.ForEach(_HostsNames, host =>
         {
             List<PingReply> pingReplies = new List<PingReply>();
             Ping Ping = new Ping();
             for (int i = 0; i < _PingCount; i++)
             {
-                pingReplies.Add(Ping.Send(host));
+                PingReplies.Add(Ping.Send(host));
                 Thread.Sleep(_PingInterval);
             }
-            hostsReplies.Add(host, pingReplies);
         });
+        AddPingRepliesToHostsReplies(hostsReplies, PingReplies);
         return hostsReplies;
     }
 
     static Dictionary<string, List<PingReply>> GetHostsRepliesWithParallelFor()
     {
         Dictionary<string, List<PingReply>> hostsReplies = new Dictionary<string, List<PingReply>>();
+        ConcurrentBag<PingReply> PingReplies = new ConcurrentBag<PingReply>();
         Parallel.For(0, _HostsNames.Count, index =>
         {
             string host = _HostsNames[index];
@@ -206,12 +226,11 @@ class Program
             Ping Ping = new Ping();
             for (int i = 0; i < _PingCount; i++)
             {
-                pingReplies.Add(Ping.Send(host));
+                PingReplies.Add(Ping.Send(host));
                 Thread.Sleep(_PingInterval);
             }
-            hostsReplies.Add(host, pingReplies);
-
         });
+        AddPingRepliesToHostsReplies(hostsReplies, PingReplies);
         return hostsReplies;
     }
 
